@@ -15,6 +15,15 @@ if (!isset($page_title)) {
     <title><?= htmlspecialchars($page_title) ?></title>
     <meta name="description" content="Sigue y analiza tu progreso en el gimnasio con nuestra herramienta profesional.">
     <link rel="icon" type="image/png" href="components/favicon.png">
+    
+    <!-- App Mode Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GymTraker">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="components/favicon.png">
+    <link rel="manifest" href="manifest.json">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts: Outfit -->
