@@ -13,10 +13,10 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     // Evitar que el admin se desactive a sí mismo
     if ($target_id != getCurrentUserId()) {
         if ($_GET['action'] == 'toggle') {
-            $stmt = $pdo->prepare("UPDATE GT_users SET is_active = 1 - is_active WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE DT_users SET is_active = 1 - is_active WHERE id = ?");
             $stmt->execute([$target_id]);
         } elseif ($_GET['action'] == 'delete') {
-            $stmt = $pdo->prepare("DELETE FROM GT_users WHERE id = ?");
+            $stmt = $pdo->prepare("DELETE FROM DT_users WHERE id = ?");
             $stmt->execute([$target_id]);
         }
     }
@@ -25,7 +25,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
 }
 
 // Obtener lista de usuarios
-$users = $pdo->query("SELECT id, username, email, role, is_active, created_at FROM GT_users ORDER BY id DESC")->fetchAll();
+$users = $pdo->query("SELECT id, username, email, role, is_active, created_at FROM DT_users ORDER BY id DESC")->fetchAll();
 
 include 'includes/header.php';
 ?>

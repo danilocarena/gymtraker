@@ -11,7 +11,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($username) || empty($password)) {
         $error = "Por favor, ingresa tu usuario y contraseña.";
     } else {
-        $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM GT_users WHERE username = :username");
+        $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM DT_users WHERE username = :username");
         $stmt->bindParam(':username', $username);
         $stmt->execute();
 
@@ -45,13 +45,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inicia Sesión - GymTracker Pro</title>
+    <title>Inicia Sesión - DayTraker Pro</title>
     <link rel="icon" type="image/png" href="components/favicon.png">
     
     <!-- App Mode Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="GymTraker">
+    <meta name="apple-mobile-web-app-title" content="DayTraker">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
     <link rel="apple-touch-icon" href="components/favicon.png">
@@ -95,7 +95,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 <body>
     <div class="glass-panel">
-        <h2 class="text-3xl font-extrabold text-primary mb-2">GymTracker</h2>
+        <h2 class="text-3xl font-extrabold text-primary mb-2">DayTraker</h2>
         <p class="text-slate-400 mb-8 text-sm">Ingresa para ver tu progreso</p>
 
         <?php if (!empty($error)) : ?>

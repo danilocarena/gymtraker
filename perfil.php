@@ -8,28 +8,18 @@ $username = getCurrentUsername();
 $success = '';
 $error = '';
 
-// Procesar Actualización de Perfil (Datos biométricos, objetivo y avatar)
+// Procesar Actualización de Perfil (Avatar)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
-    $new_height = floatval($_POST['height']);
-    $new_target_weight = floatval($_POST['target_weight']);
-    $new_goal = intval($_POST['weekly_goal']);
-    $new_avatar = $_POST['avatar_emoji'] ?? '🦍';
+    $new_avatar = $_POST['avatar_emoji'] ?? '🚀';
     
     try {
-        $stmtUpdate = $pdo->prepare("UPDATE GT_users SET height = ?, target_weight = ?, weekly_goal = ?, avatar_emoji = ? WHERE id = ?");
+        $stmtUpdate = $pdo->prepare("UPDATE DT_users SET avatar_emoji = ? WHERE id = ?");
         $stmtUpdate->execute([
-            $new_height > 0 ? $new_height : null, 
-            $new_target_weight > 0 ? $new_target_weight : null,
-            $new_goal > 0 ? $new_goal : 4,
             $new_avatar,
             $user_id
         ]);
         
-        if ($stmtUpdate->rowCount() >= 0) {
-            $success = "Perfil actualizado con éxito.";
-        } else {
-            $error = "No se realizaron cambios en el perfil.";
-        }
+        $success = "Perfil actualizado con éxito.";
     } catch (Exception $e) {
         $error = "Error al actualizar: " . $e->getMessage();
     }
@@ -41,8 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     $new_pass = $_POST['new_password'];
     $confirm_pass = $_POST['confirm_password'];
 
-    // Obtener hash actual
-    $stmt = $pdo->prepare("SELECT password_hash FROM GT_users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT password_hash FROM DT_users WHERE id = ?");
     $stmt->execute([$user_id]);
     $stored_hash = $stmt->fetchColumn();
 
@@ -54,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
         $error = "La nueva contraseña debe tener al menos 6 caracteres.";
     } else {
         $new_hash = password_hash($new_pass, PASSWORD_DEFAULT);
-        $stmt = $pdo->prepare("UPDATE GT_users SET password_hash = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE DT_users SET password_hash = ? WHERE id = ?");
         if ($stmt->execute([$new_hash, $user_id])) {
             $success = "¡Contraseña actualizada con éxito!";
         } else {
@@ -63,123 +52,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
     }
 }
 
-// 1. Info del usuario (Fetch fresco después del post)
-$stmtInfo = $pdo->prepare("SELECT email, created_at, weight, height, target_weight, weekly_goal, avatar_emoji, password_hash, google_id FROM GT_users WHERE id = ?");
+// Fetch Info
+$stmtInfo = $pdo->prepare("SELECT email, created_at, avatar_emoji, password_hash, google_id FROM DT_users WHERE id = ?");
 $stmtInfo->execute([$user_id]);
 $user_info = $stmtInfo->fetch();
 
-if (!$user_info) {
-    die("Error: No se pudo encontrar la información del usuario ID: " . htmlspecialchars($user_id));
-}
-
-$peso = $user_info['weight'] ? floatval($user_info['weight']) : 0;
-$altura = $user_info['height'] ? floatval($user_info['height']) : 0;
-$goal = $user_info['weekly_goal'] ?: 4;
-$avatar = $user_info['avatar_emoji'] ?: '🦍';
-$imc = 0;
-if ($peso > 0 && $altura > 0) {
-    $altura_m = $altura / 100;
-    $imc = $peso / ($altura_m * $altura_m);
-}
+// Meta automática
+$stmtGoal = $pdo->prepare("SELECT COUNT(*) FROM DT_weekly_routine WHERE user_id = ?");
+$stmtGoal->execute([$user_id]);
+$goal = intval($stmtGoal->fetchColumn()) ?: 0;
+$avatar = $user_info['avatar_emoji'] ?: '🚀';
 
 // Stats
-$stmtTotalSessions = $pdo->prepare("SELECT COUNT(*) FROM GT_workout_sessions WHERE user_id = ?");
-$stmtTotalSessions->execute([$user_id]);
-$total_sessions = $stmtTotalSessions->fetchColumn();
+$stmtTotalPlans = $pdo->prepare("SELECT COUNT(*) FROM DT_daily_plans WHERE user_id = ?");
+$stmtTotalPlans->execute([$user_id]);
+$total_plans = $stmtTotalPlans->fetchColumn();
 
-$stmtVolume = $pdo->prepare("SELECT SUM(reps * weight) FROM GT_session_logs sl JOIN GT_workout_sessions ws ON sl.session_id = ws.id WHERE ws.user_id = ?");
-$stmtVolume->execute([$user_id]);
-$total_volume = $stmtVolume->fetchColumn() ?: 0;
+$stmtTasks = $pdo->prepare("SELECT COUNT(*) FROM DT_task_logs sl JOIN DT_daily_plans ws ON sl.plan_id = ws.id WHERE ws.user_id = ? AND sl.status = 'completed'");
+$stmtTasks->execute([$user_id]);
+$total_tasks_completed = $stmtTasks->fetchColumn() ?: 0;
 
-$stmtFav = $pdo->prepare("SELECT exercise_name, COUNT(*) as sets_done FROM GT_session_logs sl JOIN GT_workout_sessions ws ON sl.session_id = ws.id WHERE ws.user_id = ? GROUP BY exercise_name ORDER BY sets_done DESC LIMIT 1");
+$stmtFav = $pdo->prepare("
+    SELECT t.name as task_name, COUNT(*) as done_count 
+    FROM DT_task_logs sl 
+    JOIN DT_daily_plans ws ON sl.plan_id = ws.id 
+    JOIN DT_tasks t ON sl.task_id = t.id
+    WHERE ws.user_id = ? AND sl.status = 'completed'
+    GROUP BY t.id 
+    ORDER BY done_count DESC 
+    LIMIT 1
+");
 $stmtFav->execute([$user_id]);
-$fav_exercise = $stmtFav->fetch() ?: ['exercise_name' => 'Sin datos', 'sets_done' => 0];
+$fav_task = $stmtFav->fetch() ?: ['task_name' => 'Sin datos', 'done_count' => 0];
 
 $active_page = 'perfil';
-$page_title = 'Mi Perfil - GymTraker';
+$page_title = 'Mi Perfil - DayTraker';
 
 require_once 'includes/header.php';
 ?>
 
-
-<!-- Modal: Editar Perfil -->
-<div id="modalPerfil" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-black/60 backdrop-blur-sm p-4">
-    <div class="flex min-h-full items-center justify-center">
-        <div class="glass-panel w-full max-w-md bg-[#1e293b] border border-white/10 shadow-2xl relative">
-            <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                <h2 class="text-xl font-black text-white">Configurar Perfil</h2>
-                <button type="button" class="text-slate-400 hover:text-white text-3xl leading-none" onclick="closeModal()">&times;</button>
-            </div>
-
-            <form action="perfil" method="POST" class="space-y-6">
-                <div>
-                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Tu Avatar</label>
-                    <div class="grid grid-cols-5 gap-2" id="avatar-selector">
-                        <?php 
-                        $emojis = ['🦍', '🦁', '🐺', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐣', '🦖'];
-                        foreach($emojis as $e): 
-                        ?>
-                            <label class="cursor-pointer">
-                                <input type="radio" name="avatar_emoji" value="<?= $e ?>" class="hidden peer" <?= $avatar == $e ? 'checked' : '' ?>>
-                                <div class="w-12 h-12 flex items-center justify-center text-2xl bg-white/5 rounded-xl border border-white/10 peer-checked:bg-primary/20 peer-checked:border-primary transition-all hover:bg-white/10">
-                                    <?= $e ?>
-                                </div>
-                            </label>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Altura (cm)</label>
-                    <input type="number" step="0.1" name="height" class="form-control" value="<?= $altura ?: '' ?>" placeholder="178">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Peso Objetivo (kg)</label>
-                    <input type="number" step="0.1" name="target_weight" class="form-control" value="<?= $user_info['target_weight'] ?: '' ?>" placeholder="70.5">
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Objetivo Semanal (Días)</label>
-                    <input type="number" name="weekly_goal" class="form-control" value="<?= $goal ?>" min="1" max="7">
-                </div>
-                <button type="submit" name="update_profile" class="w-full btn-primary uppercase tracking-widest">Guardar Cambios</button>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- Modal: Cambiar Contraseña -->
-<div id="modalPassword" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-black/60 backdrop-blur-sm p-4">
-    <div class="flex min-h-full items-center justify-center">
-        <div class="glass-panel w-full max-w-sm bg-[#1e293b] border border-white/10 shadow-2xl">
-            <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
-                <h2 class="text-xl font-black text-white uppercase tracking-tighter">Seguridad</h2>
-                <button type="button" class="text-slate-400 hover:text-white text-3xl leading-none" onclick="closePassModal()">&times;</button>
-            </div>
-
-            <form action="perfil" method="POST" class="space-y-5 text-left">
-                <input type="hidden" name="change_password" value="1">
-                <?php if ($user_info['password_hash']): ?>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Contraseña Actual</label>
-                    <input type="password" name="current_password" class="form-control" required>
-                </div>
-                <?php endif; ?>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nueva Contraseña</label>
-                    <input type="password" name="new_password" class="form-control" required minlength="6">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confirmar Nueva Contraseña</label>
-                    <input type="password" name="confirm_password" class="form-control" required minlength="6">
-                </div>
-                <button type="submit" class="w-full btn-primary uppercase tracking-widest mt-4">Actualizar Contraseña</button>
-            </form>
-        </div>
-    </div>
-</div>
-
 <header class="mb-8">
-    <h1 class="text-3xl font-extrabold mb-1">Perfil y Estadísticas <i class="fa-solid fa-user text-primary ml-1"></i></h1>
-    <p class="text-slate-400">Personaliza tu experiencia y objetivos.</p>
+    <h1 class="text-3xl font-extrabold mb-1">Perfil <i class="fa-solid fa-user text-primary ml-1"></i></h1>
+    <p class="text-slate-400">Personaliza tu cuenta y revisa tu rendimiento.</p>
 </header>
 
 <?php if($success): ?>
@@ -190,77 +104,93 @@ require_once 'includes/header.php';
 <?php endif; ?>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Card Principal de Perfil -->
     <div class="lg:col-span-1">
         <div class="glass-panel text-center relative overflow-hidden">
             <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-blue-500"></div>
-            <div class="w-24 h-24 bg-primary/10 border-2 border-primary rounded-full flex items-center justify-center text-4xl mx-auto mb-4 mt-2 shadow-[0_0_20px_rgba(34,197,94,0.2)]"><?= $avatar ?></div>
+            <div class="w-24 h-24 bg-primary/10 border-2 border-primary rounded-full flex items-center justify-center text-4xl mx-auto mb-4 mt-2"><?= $avatar ?></div>
             <h2 class="text-2xl font-black text-white">@<?= htmlspecialchars($username) ?></h2>
             <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-6"><?= htmlspecialchars($user_info['email']) ?></p>
             
-            <div class="grid grid-cols-2 gap-4 border-t border-white/5 pt-6 mb-6">
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                    <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Estado IMC</span>
-                    <span class="text-sm font-black <?= $imc > 0 ? ($imc < 25 ? 'text-primary' : 'text-yellow-500') : 'text-slate-600' ?>">
-                        <?= $imc > 0 ? number_format($imc, 1) : '--' ?>
-                    </span>
-                </div>
-                <div class="bg-white/5 p-3 rounded-xl border border-white/5">
-                    <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Meta Semanal</span>
-                    <span class="text-sm font-black text-primary"><?= $goal ?> días</span>
-                </div>
+            <div class="bg-white/5 p-4 rounded-xl border border-white/5 mb-6">
+                <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Meta Semanal</span>
+                <span class="text-sm font-black text-primary"><?= $goal ?> tareas programadas</span>
             </div>
 
-            <button onclick="openModal()" class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-widest">Editar Perfil</button>
-            
+            <button onclick="openModal()" class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-widest mb-3">Editar Perfil</button>
             <?php if (!$user_info['google_id'] || $user_info['password_hash']): ?>
-                <button onclick="openPassModal()" class="w-full mt-3 bg-white/0 border border-transparent hover:text-primary text-slate-500 py-2 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                <button onclick="openPassModal()" class="w-full bg-white/0 text-slate-500 hover:text-primary py-2 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
                     <i class="fa-solid fa-lock"></i> Cambiar Contraseña
                 </button>
             <?php endif; ?>
         </div>
     </div>
 
-    <!-- Stats y Actividad -->
     <div class="lg:col-span-2 space-y-6">
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div class="glass-panel flex flex-col items-center justify-center p-4">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Peso Actual</span>
-                <span class="text-3xl font-black text-primary"><?= $peso ?> <small class="text-xs opacity-50">kg</small></span>
-                <a href="peso" class="text-[10px] text-blue-400 font-black uppercase mt-2 hover:underline">Gestionar Peso</a>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="glass-panel text-center">
+                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 block">Planes Realizados</span>
+                <span class="text-4xl font-black text-primary"><?= $total_plans ?></span>
             </div>
-            <div class="glass-panel flex flex-col items-center justify-center p-4">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Peso Objetivo</span>
-                <span class="text-3xl font-black text-blue-400"><?= $user_info['target_weight'] ?: '--' ?> <small class="text-xs opacity-50">kg</small></span>
+            <div class="glass-panel text-center">
+                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 block">Tareas Completadas</span>
+                <span class="text-4xl font-black text-blue-400"><?= $total_tasks_completed ?></span>
             </div>
-            <div class="glass-panel flex flex-col items-center justify-center p-4">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Entrenos</span>
-                <span class="text-3xl font-black text-primary"><?= $total_sessions ?></span>
-            </div>
-            <div class="glass-panel flex flex-col items-center justify-center p-4 col-span-1 md:col-span-1">
-                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Favorito</span>
-                <span class="text-sm font-black text-white truncate w-full text-center"><?= $fav_exercise['exercise_name'] ?></span>
+            <div class="glass-panel text-center md:col-span-2">
+                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2 block">Tarea más frecuente</span>
+                <span class="text-xl font-black text-white uppercase"><?= htmlspecialchars($fav_task['task_name']) ?></span>
+                <p class="text-xs text-slate-500 font-bold mt-1"><?= $fav_task['done_count'] ?> veces realizada</p>
             </div>
         </div>
+    </div>
+</div>
 
-        <div class="glass-panel bg-gradient-to-br from-primary/10 to-blue-500/10 border-primary/20">
-            <h3 class="text-base font-black text-white mb-2">Tu Espíritu Animal</h3>
-            <p class="text-sm text-slate-400 mb-4">Has elegido el <?= $avatar ?> para representarte. ¡Mantén esa fuerza en cada entrenamiento!</p>
-            <div class="flex gap-2">
-                <?php for($i=1; $i<=7; $i++): ?>
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold <?= $i<=$goal ? 'bg-primary text-white' : 'bg-white/5 text-slate-600' ?>">
-                        <?= $i ?>
-                    </div>
-                <?php endfor; ?>
-            </div>
+<!-- Modal: Editar Perfil -->
+<div id="modalPerfil" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center">
+    <div class="glass-panel w-full max-w-md animate-in fade-in zoom-in duration-200">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+            <h2 class="text-xl font-black text-white uppercase">Perfil</h2>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-white text-3xl leading-none">&times;</button>
         </div>
+        <form action="perfil" method="POST" class="space-y-6">
+            <div>
+                <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Elige tu Avatar</label>
+                <div class="grid grid-cols-5 gap-2">
+                    <?php foreach(['🚀', '🎯', '🔥', '🧠', '💼', '📅', '📝', '⚡', '🌟', '💪', '🦁', '🦊', '🐺', '🦉', '💎'] as $e): ?>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="avatar_emoji" value="<?= $e ?>" class="hidden peer" <?= $avatar == $e ? 'checked' : '' ?>>
+                            <div class="w-12 h-12 flex items-center justify-center text-2xl bg-white/5 rounded-xl border border-white/10 peer-checked:bg-primary/20 peer-checked:border-primary transition-all"><?= $e ?></div>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-500 font-bold text-center mt-2 italic px-4">Tu meta semanal ahora se calcula automáticamente sumando todas las tareas de tu Rutina Semanal.</p>
+            <button type="submit" name="update_profile" class="w-full btn-primary uppercase tracking-widest">Guardar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Contraseña -->
+<div id="modalPassword" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center">
+    <div class="glass-panel w-full max-w-sm animate-in fade-in zoom-in duration-200">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+            <h2 class="text-xl font-black text-white uppercase">Seguridad</h2>
+            <button onclick="closePassModal()" class="text-slate-400 hover:text-white text-3xl leading-none">&times;</button>
+        </div>
+        <form action="perfil" method="POST" class="space-y-5">
+            <input type="hidden" name="change_password" value="1">
+            <?php if ($user_info['password_hash']): ?>
+                <input type="password" name="current_password" class="form-control" placeholder="Contraseña Actual" required>
+            <?php endif; ?>
+            <input type="password" name="new_password" class="form-control" placeholder="Nueva Contraseña" required minlength="6">
+            <input type="password" name="confirm_password" class="form-control" placeholder="Confirmar" required minlength="6">
+            <button type="submit" class="w-full btn-primary uppercase tracking-widest">Actualizar</button>
+        </form>
     </div>
 </div>
 
 <script>
     function openModal() { document.getElementById('modalPerfil').classList.remove('hidden'); }
     function closeModal() { document.getElementById('modalPerfil').classList.add('hidden'); }
-    
     function openPassModal() { document.getElementById('modalPassword').classList.remove('hidden'); }
     function closePassModal() { document.getElementById('modalPassword').classList.add('hidden'); }
 </script>

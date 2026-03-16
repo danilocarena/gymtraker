@@ -15,7 +15,7 @@
     RewriteRule ^([^\.]+)$ $1.php [NC,L]
 
     # Proteger archivos de configuración
-    <FilesMatch "^(gymtracker\.sql|\.htaccess|\.env|includes/db\.php)$">
+    <FilesMatch "^(daytracker\.sql|\.htaccess|\.env|includes/db\.php)$">
         Require all denied
     </FilesMatch>
 

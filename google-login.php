@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['credential'])) {
         $name = $payload['name'] ?? $payload['given_name'] ?? 'Usuario';
 
         // 1. Buscar si el usuario ya existe por google_id
-        $stmt = $pdo->prepare("SELECT id, username, role, is_active FROM GT_users WHERE google_id = :google_id");
+        $stmt = $pdo->prepare("SELECT id, username, role, is_active FROM DT_users WHERE google_id = :google_id");
         $stmt->execute([':google_id' => $google_id]);
         $user = $stmt->fetch();
 
@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['credential'])) {
             exit;
         } else {
             // 2. Si no existe por google_id, ver si el email ya existe
-            $stmt = $pdo->prepare("SELECT id, username, role, is_active FROM GT_users WHERE email = :email");
+            $stmt = $pdo->prepare("SELECT id, username, role, is_active FROM DT_users WHERE email = :email");
             $stmt->execute([':email' => $email]);
             $userByEmail = $stmt->fetch();
 
@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['credential'])) {
                     die("Tu cuenta ha sido desactivada por un administrador.");
                 }
                 // El email existe pero no estaba vinculado. Lo vinculamos.
-                $stmt = $pdo->prepare("UPDATE GT_users SET google_id = :google_id WHERE id = :user_id");
+                $stmt = $pdo->prepare("UPDATE DT_users SET google_id = :google_id WHERE id = :user_id");
                 $stmt->execute([':google_id' => $google_id, ':user_id' => $userByEmail['id']]);
                 
                 $_SESSION['user_id'] = $userByEmail['id'];
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['credential'])) {
                 // 3. El usuario no existe. Lo registramos.
                 $username = strtolower(str_replace(' ', '', $name)) . rand(100, 999);
                 
-                $stmt = $pdo->prepare("INSERT INTO GT_users (username, email, google_id, role) VALUES (:username, :email, :google_id, 'user')");
+                $stmt = $pdo->prepare("INSERT INTO DT_users (username, email, google_id, role) VALUES (:username, :email, :google_id, 'user')");
                 $stmt->execute([
                     ':username' => $username,
                     ':email' => $email,

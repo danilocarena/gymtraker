@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnNuevaSesion.classList.add('scale-95');
             setTimeout(() => {
                 btnNuevaSesion.classList.remove('scale-95');
-                window.location.href = 'sesion_nueva.php';
+                window.location.href = 'plan_nuevo.php';
             }, 100);
         });
     }

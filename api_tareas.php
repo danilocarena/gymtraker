@@ -1,5 +1,5 @@
 <?php
-// api_ejercicios.php
+// api_tareas.php
 require_once 'includes/auth.php';
 require_once 'includes/db.php';
 
@@ -18,10 +18,10 @@ if (strlen($q) < 1) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT name FROM GT_exercises WHERE name LIKE ? ORDER BY name ASC LIMIT 10");
+    $stmt = $pdo->prepare("SELECT name FROM DT_tasks WHERE name LIKE ? ORDER BY name ASC LIMIT 10");
     $stmt->execute(['%' . $q . '%']);
-    $ejercicios = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    echo json_encode($ejercicios);
+    $tareas = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    echo json_encode($tareas);
 } catch (Exception $e) {
     echo json_encode([]);
 }

@@ -19,7 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "La contraseña debe tener al menos 6 caracteres.";
     } else {
         // Verificar si el usuario o el email ya existen
-        $stmt = $pdo->prepare("SELECT id FROM GT_users WHERE username = :username OR email = :email");
+        $stmt = $pdo->prepare("SELECT id FROM DT_users WHERE username = :username OR email = :email");
         $stmt->bindParam(':username', $username);
         $stmt->bindParam(':email', $email);
         $stmt->execute();
@@ -29,7 +29,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } else {
             // Insertar nuevo usuario
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("INSERT INTO GT_users (username, email, password_hash) VALUES (:username, :email, :password)");
+            $stmt = $pdo->prepare("INSERT INTO DT_users (username, email, password_hash) VALUES (:username, :email, :password)");
             $stmt->bindParam(':username', $username);
             $stmt->bindParam(':email', $email);
             $stmt->bindParam(':password', $hashed_password);
@@ -48,13 +48,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Regístrate - GymTracker Pro</title>
+    <title>Regístrate - DayTraker Pro</title>
     <link rel="icon" type="image/png" href="components/favicon.png">
     
     <!-- App Mode Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="GymTraker">
+    <meta name="apple-mobile-web-app-title" content="DayTraker">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
     <link rel="apple-touch-icon" href="components/favicon.png">
@@ -99,7 +99,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <body>
     <div class="glass-panel">
         <h2 class="text-3xl font-extrabold text-primary mb-2">Crear Cuenta</h2>
-        <p class="text-slate-400 mb-8 text-sm">Únete y lleva tu entreno a otro nivel</p>
+        <p class="text-slate-400 mb-8 text-sm">Únete y organiza tu vida hoy mismo</p>
 
         <?php if (!empty($error)) : ?>
             <div class="bg-red-500/10 text-red-500 p-3 rounded-lg mb-6 font-semibold text-sm"><?php echo $error; ?></div>
