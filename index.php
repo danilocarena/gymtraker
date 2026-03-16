@@ -11,12 +11,22 @@ $page_title = 'Dashboard - GymTracker Pro';
 
 // --- DATA FETCHING ---
 
-// 0. Obtener configuración del usuario (Objetivo semanal y Avatar)
-$stmtUser = $pdo->prepare("SELECT weekly_goal, avatar_emoji FROM GT_users WHERE id = ?");
+// 0. Obtener configuración del usuario (Objetivo semanal, Avatar, Peso, Altura, Peso Objetivo)
+$stmtUser = $pdo->prepare("SELECT weekly_goal, avatar_emoji, weight, height, target_weight FROM GT_users WHERE id = ?");
 $stmtUser->execute([$user_id]);
-$user_config = $stmtUser->fetch();
-$weekly_goal = $user_config['weekly_goal'] ?: 4;
-$avatar = $user_config['avatar_emoji'] ?: '🦍';
+$user_data = $stmtUser->fetch();
+
+$weekly_goal = $user_data['weekly_goal'] ?: 4;
+$avatar = $user_data['avatar_emoji'] ?: '🦍';
+$peso = $user_data['weight'] ?: 0;
+$altura = $user_data['height'] ?: 0;
+
+$imc = 0;
+if ($peso > 0 && $altura > 0) {
+    $altura_m = $altura / 100;
+    $imc = round($peso / ($altura_m * $altura_m), 1);
+}
+$bmi_info = getBMICategory($imc);
 
 // 1. Última Sesión
 $stmtLast = $pdo->prepare("SELECT session_name, session_date FROM GT_workout_sessions WHERE user_id = ? ORDER BY session_date DESC, id DESC LIMIT 1");
@@ -115,6 +125,22 @@ require_once 'includes/header.php';
                     <span class="text-xs text-slate-500 font-medium"><?= $weekly_count ?> realizados esta semana</span>
                 </div>
 
+                <!-- Widget: IMC Velocimetro -->
+                <div class="glass-panel group">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Mi IMC (BMI)</h3>
+                        <span class="text-[10px] font-black uppercase px-1.5 py-0.5 rounded bg-white/5" style="color: <?= $bmi_info['color'] ?>;">
+                            <?= $imc > 0 ? $bmi_info['label'] : '--' ?>
+                        </span>
+                    </div>
+                    <div class="relative h-24 flex items-center justify-center overflow-hidden">
+                        <canvas id="bmiGauge" class="absolute inset-0"></canvas>
+                        <div class="absolute bottom-2 text-center">
+                            <span class="text-2xl font-black text-white"><?= $imc > 0 ? $imc : '--' ?></span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Widget: Récord Personal -->
                 <div class="glass-panel sm:col-span-2 lg:col-span-1">
                     <h3 class="text-[10px] text-slate-500 font-bold mb-4 uppercase tracking-widest">Mejor marca (30d) <i class="fa-solid fa-trophy text-yellow-500 ml-1"></i></h3>
@@ -209,6 +235,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         ticks: { color: '#94a3b8', font: { size: 10 } }
                     }
                 }
+            }
+        });
+    }
+
+    // Gráfico de IMC (Gauge)
+    const ctxBMI = document.getElementById('bmiGauge');
+    if (ctxBMI) {
+        const imcValue = <?= $imc ?>;
+        // Normalizar valor para el gráfico (min 15, max 40 para visualización)
+        let normalized = imcValue;
+        if (normalized < 15) normalized = 15;
+        if (normalized > 40) normalized = 40;
+        
+        new Chart(ctxBMI, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [normalized - 15, 40 - normalized],
+                    backgroundColor: ['<?= $bmi_info['color'] ?>', 'rgba(255,255,255,0.05)'],
+                    borderWidth: 0,
+                    circumference: 180,
+                    rotation: 270,
+                    cutout: '75%',
+                    borderRadius: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: { bottom: 20 }
+                },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
             }
         });
     }

@@ -11,13 +11,15 @@ $error = '';
 // Procesar Actualización de Perfil (Datos biométricos, objetivo y avatar)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $new_height = floatval($_POST['height']);
+    $new_target_weight = floatval($_POST['target_weight']);
     $new_goal = intval($_POST['weekly_goal']);
     $new_avatar = $_POST['avatar_emoji'] ?? '🦍';
     
     try {
-        $stmtUpdate = $pdo->prepare("UPDATE GT_users SET height = ?, weekly_goal = ?, avatar_emoji = ? WHERE id = ?");
+        $stmtUpdate = $pdo->prepare("UPDATE GT_users SET height = ?, target_weight = ?, weekly_goal = ?, avatar_emoji = ? WHERE id = ?");
         $stmtUpdate->execute([
             $new_height > 0 ? $new_height : null, 
+            $new_target_weight > 0 ? $new_target_weight : null,
             $new_goal > 0 ? $new_goal : 4,
             $new_avatar,
             $user_id
@@ -33,8 +35,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     }
 }
 
+// Procesar Cambio de Contraseña
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
+    $current_pass = $_POST['current_password'];
+    $new_pass = $_POST['new_password'];
+    $confirm_pass = $_POST['confirm_password'];
+
+    // Obtener hash actual
+    $stmt = $pdo->prepare("SELECT password_hash FROM GT_users WHERE id = ?");
+    $stmt->execute([$user_id]);
+    $stored_hash = $stmt->fetchColumn();
+
+    if ($stored_hash && !password_verify($current_pass, $stored_hash)) {
+        $error = "La contraseña actual es incorrecta.";
+    } elseif ($new_pass !== $confirm_pass) {
+        $error = "Las nuevas contraseñas no coinciden.";
+    } elseif (strlen($new_pass) < 6) {
+        $error = "La nueva contraseña debe tener al menos 6 caracteres.";
+    } else {
+        $new_hash = password_hash($new_pass, PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE GT_users SET password_hash = ? WHERE id = ?");
+        if ($stmt->execute([$new_hash, $user_id])) {
+            $success = "¡Contraseña actualizada con éxito!";
+        } else {
+            $error = "Error al actualizar la contraseña.";
+        }
+    }
+}
+
 // 1. Info del usuario (Fetch fresco después del post)
-$stmtInfo = $pdo->prepare("SELECT email, created_at, weight, height, weekly_goal, avatar_emoji FROM GT_users WHERE id = ?");
+$stmtInfo = $pdo->prepare("SELECT email, created_at, weight, height, target_weight, weekly_goal, avatar_emoji, password_hash, google_id FROM GT_users WHERE id = ?");
 $stmtInfo->execute([$user_id]);
 $user_info = $stmtInfo->fetch();
 
@@ -103,10 +133,45 @@ require_once 'includes/header.php';
                     <input type="number" step="0.1" name="height" class="form-control" value="<?= $altura ?: '' ?>" placeholder="178">
                 </div>
                 <div>
+                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Peso Objetivo (kg)</label>
+                    <input type="number" step="0.1" name="target_weight" class="form-control" value="<?= $user_info['target_weight'] ?: '' ?>" placeholder="70.5">
+                </div>
+                <div>
                     <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Objetivo Semanal (Días)</label>
                     <input type="number" name="weekly_goal" class="form-control" value="<?= $goal ?>" min="1" max="7">
                 </div>
                 <button type="submit" name="update_profile" class="w-full btn-primary uppercase tracking-widest">Guardar Cambios</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Cambiar Contraseña -->
+<div id="modalPassword" class="fixed inset-0 z-[100] hidden overflow-y-auto bg-black/60 backdrop-blur-sm p-4">
+    <div class="flex min-h-full items-center justify-center">
+        <div class="glass-panel w-full max-w-sm bg-[#1e293b] border border-white/10 shadow-2xl">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+                <h2 class="text-xl font-black text-white uppercase tracking-tighter">Seguridad</h2>
+                <button type="button" class="text-slate-400 hover:text-white text-3xl leading-none" onclick="closePassModal()">&times;</button>
+            </div>
+
+            <form action="perfil" method="POST" class="space-y-5 text-left">
+                <input type="hidden" name="change_password" value="1">
+                <?php if ($user_info['password_hash']): ?>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Contraseña Actual</label>
+                    <input type="password" name="current_password" class="form-control" required>
+                </div>
+                <?php endif; ?>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Nueva Contraseña</label>
+                    <input type="password" name="new_password" class="form-control" required minlength="6">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Confirmar Nueva Contraseña</label>
+                    <input type="password" name="confirm_password" class="form-control" required minlength="6">
+                </div>
+                <button type="submit" class="w-full btn-primary uppercase tracking-widest mt-4">Actualizar Contraseña</button>
             </form>
         </div>
     </div>
@@ -147,6 +212,12 @@ require_once 'includes/header.php';
             </div>
 
             <button onclick="openModal()" class="w-full bg-white/5 border border-white/10 hover:bg-white/10 text-white py-3 rounded-xl font-bold transition-all text-xs uppercase tracking-widest">Editar Perfil</button>
+            
+            <?php if (!$user_info['google_id'] || $user_info['password_hash']): ?>
+                <button onclick="openPassModal()" class="w-full mt-3 bg-white/0 border border-transparent hover:text-primary text-slate-500 py-2 rounded-xl font-bold transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-lock"></i> Cambiar Contraseña
+                </button>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -159,10 +230,14 @@ require_once 'includes/header.php';
                 <a href="peso" class="text-[10px] text-blue-400 font-black uppercase mt-2 hover:underline">Gestionar Peso</a>
             </div>
             <div class="glass-panel flex flex-col items-center justify-center p-4">
+                <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Peso Objetivo</span>
+                <span class="text-3xl font-black text-blue-400"><?= $user_info['target_weight'] ?: '--' ?> <small class="text-xs opacity-50">kg</small></span>
+            </div>
+            <div class="glass-panel flex flex-col items-center justify-center p-4">
                 <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Entrenos</span>
                 <span class="text-3xl font-black text-primary"><?= $total_sessions ?></span>
             </div>
-            <div class="glass-panel flex flex-col items-center justify-center p-4 col-span-2 md:col-span-1">
+            <div class="glass-panel flex flex-col items-center justify-center p-4 col-span-1 md:col-span-1">
                 <span class="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Favorito</span>
                 <span class="text-sm font-black text-white truncate w-full text-center"><?= $fav_exercise['exercise_name'] ?></span>
             </div>
@@ -185,6 +260,9 @@ require_once 'includes/header.php';
 <script>
     function openModal() { document.getElementById('modalPerfil').classList.remove('hidden'); }
     function closeModal() { document.getElementById('modalPerfil').classList.add('hidden'); }
+    
+    function openPassModal() { document.getElementById('modalPassword').classList.remove('hidden'); }
+    function closePassModal() { document.getElementById('modalPassword').classList.add('hidden'); }
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

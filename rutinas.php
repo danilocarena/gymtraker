@@ -52,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_rutina'])) {
                                 $ej_nombre = trim($ej_nombre);
                                 if (!empty($ej_nombre)) {
                                     // --- LIBRERÍA GLOBAL: Insertar ejercicio si no existe ---
-                                    $stmtLib = $pdo->prepare("INSERT IGNORE INTO GT_exercises (name) VALUES (?)");
+                                    // Usamos 'Otros' como valor por defecto para el grupo muscular obligatorio
+                                    $stmtLib = $pdo->prepare("INSERT IGNORE INTO GT_exercises (name, muscle_group) VALUES (?, 'Otros')");
                                     $stmtLib->execute([$ej_nombre]);
 
                                     $stmt = $pdo->prepare("INSERT INTO GT_routine_exercises (routine_day_id, exercise_name, exercise_order) VALUES (?, ?, ?)");

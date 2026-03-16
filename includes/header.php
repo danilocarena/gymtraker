@@ -137,8 +137,14 @@ if (!isset($page_title)) {
                 </li>
                 <li>
                     <a href="peso" class="nav-link <?= ($active_page == 'peso') ? 'text-white bg-primary/10 border-primary/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent' ?> flex items-center gap-3 py-3 px-4 rounded-xl border transition-all duration-200 group no-underline text-sm font-bold">
-                        <span class="text-lg group-hover:scale-110 transition-transform w-5 text-center"><i class="fa-solid fa-chart-line"></i></span>
+                        <span class="text_lg group-hover:scale-110 transition-transform w-5 text-center"><i class="fa-solid fa-chart-line"></i></span>
                         <span class="whitespace-nowrap">Mi Peso</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="ejercicios" class="nav-link <?= ($active_page == 'ejercicios') ? 'text-white bg-primary/10 border-primary/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent' ?> flex items-center gap-3 py-3 px-4 rounded-xl border transition-all duration-200 group no-underline text-sm font-bold">
+                        <span class="text-lg group-hover:scale-110 transition-transform w-5 text-center"><i class="fa-solid fa-book-open"></i></span>
+                        <span class="whitespace-nowrap">Catálogo</span>
                     </a>
                 </li>
                 <li>
@@ -153,6 +159,23 @@ if (!isset($page_title)) {
                         <span class="whitespace-nowrap">Mi Perfil</span>
                     </a>
                 </li>
+                <?php if (isAdmin()): ?>
+                <div class="px-4 py-2 mt-6 mb-2">
+                    <span class="text-[10px] text-slate-500 font-bold tracking-[2px] uppercase whitespace-nowrap">Admin Panel</span>
+                </div>
+                <li>
+                    <a href="admin_users" class="nav-link <?= ($active_page == 'admin_users') ? 'text-white bg-primary/10 border-primary/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent' ?> flex items-center gap-3 py-3 px-4 rounded-xl border transition-all duration-200 group no-underline text-sm font-bold">
+                        <span class="text-lg group-hover:scale-110 transition-transform w-5 text-center"><i class="fa-solid fa-users-gear"></i></span>
+                        <span class="whitespace-nowrap">Gestion Usuarios</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="admin_exercises" class="nav-link <?= ($active_page == 'admin_exercises') ? 'text-white bg-primary/10 border-primary/20' : 'text-slate-400 hover:text-white hover:bg-white/5 border-transparent' ?> flex items-center gap-3 py-3 px-4 rounded-xl border transition-all duration-200 group no-underline text-sm font-bold">
+                        <span class="text-lg group-hover:scale-110 transition-transform w-5 text-center"><i class="fa-solid fa-list-check"></i></span>
+                        <span class="whitespace-nowrap">Gestion Ejercicios</span>
+                    </a>
+                </li>
+                <?php endif; ?>
             </ul>
         </nav>
 

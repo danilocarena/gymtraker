@@ -11,22 +11,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (empty($username) || empty($password)) {
         $error = "Por favor, ingresa tu usuario y contraseña.";
     } else {
-        $stmt = $pdo->prepare("SELECT id, username, password_hash FROM GT_users WHERE username = :username");
+        $stmt = $pdo->prepare("SELECT id, username, password_hash, role, is_active FROM GT_users WHERE username = :username");
         $stmt->bindParam(':username', $username);
         $stmt->execute();
 
         if ($stmt->rowCount() == 1) {
             if ($row = $stmt->fetch()) {
-                $id = $row['id'];
-                $hashed_password = $row['password_hash'];
-                if (password_verify($password, $hashed_password)) {
-                    // Contraseña correcta
-                    $_SESSION['user_id'] = $id;
-                    $_SESSION['username'] = $row['username'];
-                    header("Location: ./");
-                    exit;
+                if ($row['is_active'] == 0) {
+                    $error = "Tu cuenta ha sido desactivada por un administrador.";
                 } else {
-                    $error = "La contraseña no es válida.";
+                    $id = $row['id'];
+                    $hashed_password = $row['password_hash'];
+                    if (password_verify($password, $hashed_password)) {
+                        // Contraseña correcta
+                        $_SESSION['user_id'] = $id;
+                        $_SESSION['username'] = $row['username'];
+                        $_SESSION['role'] = $row['role'];
+                        header("Location: ./");
+                        exit;
+                    } else {
+                        $error = "La contraseña no es válida.";
+                    }
                 }
             }
         } else {

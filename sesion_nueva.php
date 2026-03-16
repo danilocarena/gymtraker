@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_session'])) {
                 if (empty($ej_name)) continue;
 
                 // --- LIBRERÍA GLOBAL: Insertar ejercicio si no existe ---
-                $stmtLib = $pdo->prepare("INSERT IGNORE INTO GT_exercises (name) VALUES (?)");
+                $stmtLib = $pdo->prepare("INSERT IGNORE INTO GT_exercises (name, muscle_group) VALUES (?, 'Otros')");
                 $stmtLib->execute([$ej_name]);
 
                 if (isset($ejercicio['series'])) {

@@ -4,6 +4,13 @@ require_once 'includes/db.php';
 requireLogin();
 $user_id = getCurrentUserId();
 
+// Obtener altura y peso objetivo para el IMC y progreso
+$stmtUser = $pdo->prepare("SELECT height, target_weight FROM GT_users WHERE id = ?");
+$stmtUser->execute([$user_id]);
+$user_data = $stmtUser->fetch();
+$altura = $user_data['height'] ?: 0;
+$target_weight = $user_data['target_weight'] ?: 0;
+
 $success = '';
 $error = '';
 
@@ -86,6 +93,9 @@ if (!empty($history)) {
     }
 }
 
+$imc = calculateBMI($stats['actual'], $altura);
+$bmi_info = getBMICategory($imc);
+
 $active_page = 'peso';
 $page_title = 'Control de Peso - GymTraker';
 
@@ -134,6 +144,25 @@ require_once 'includes/header.php';
     <button onclick="openAddModal()" class="w-full sm:w-auto btn-primary"><i class="fa-solid fa-plus mr-2"></i>Nuevo Registro</button>
 </header>
 
+<?php if ($target_weight > 0 && $stats['actual'] !== '--'): 
+    $diff_to_target = abs($stats['actual'] - $target_weight);
+    $total_diff = abs($stats['inicial'] - $target_weight);
+    $progress_perc = $total_diff > 0 ? (1 - ($diff_to_target / $total_diff)) * 100 : 0;
+    if ($progress_perc < 0) $progress_perc = 0;
+    if ($progress_perc > 100) $progress_perc = 100;
+?>
+    <div class="glass-panel mb-8 bg-gradient-to-r from-blue-500/10 to-primary/10 border-blue-500/20">
+        <div class="flex justify-between items-center mb-3">
+            <span class="text-xs font-black text-white uppercase tracking-widest">Progreso hacia tu meta de <?= $target_weight ?> kg</span>
+            <span class="text-xs font-black text-primary"><?= round($progress_perc) ?>%</span>
+        </div>
+        <div class="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+            <div class="h-full bg-gradient-to-r from-blue-500 to-primary rounded-full shadow-[0_0_15px_rgba(59,130,246,0.4)] transition-all duration-1000" style="width: <?= $progress_perc ?>%;"></div>
+        </div>
+        <p class="text-[10px] text-slate-500 mt-3 font-bold uppercase tracking-wide">Faltan <?= round($diff_to_target, 1) ?> kg para alcanzar tu objetivo. ¡Tú puedes!</p>
+    </div>
+<?php endif; ?>
+
 <?php if($success): ?>
     <div class="bg-primary/10 border border-primary/20 text-primary p-4 rounded-xl mb-6 font-bold"><?= htmlspecialchars($success) ?></div>
 <?php endif; ?>
@@ -159,6 +188,18 @@ require_once 'includes/header.php';
     <div class="glass-panel text-center">
         <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Máximo</span>
         <span class="text-2xl font-black text-red-400"><?= $stats['max'] ?> <small class="text-xs opacity-50">kg</small></span>
+    </div>
+    <div class="glass-panel text-center col-span-2 md:col-span-1 flex flex-col justify-center p-4">
+        <span class="block text-[10px] text-slate-500 font-black uppercase tracking-widest mb-2">Tu IMC</span>
+        <div class="relative h-20 flex items-center justify-center overflow-hidden mb-1">
+            <canvas id="bmiGauge" class="absolute inset-0"></canvas>
+            <div class="absolute bottom-1 text-center">
+                <span class="text-xl font-black text-white"><?= $imc > 0 ? $imc : '--' ?></span>
+            </div>
+        </div>
+        <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-white/5 self-center" style="color: <?= $bmi_info['color'] ?>;">
+            <?= $bmi_info['label'] ?>
+        </span>
     </div>
 </div>
 
@@ -276,6 +317,38 @@ require_once 'includes/header.php';
                             ticks: { color: '#94a3b8', font: { size: 10 } }
                         }
                     }
+                }
+            });
+        }
+
+        // Gráfico de IMC (Gauge)
+        const ctxBMI = document.getElementById('bmiGauge');
+        if (ctxBMI) {
+            const imcValue = <?= $imc ?>;
+            let normalized = imcValue;
+            if (normalized < 15) normalized = 15;
+            if (normalized > 40) normalized = 40;
+            
+            new Chart(ctxBMI, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [normalized - 15, 40 - normalized],
+                        backgroundColor: ['<?= $bmi_info['color'] ?>', 'rgba(255,255,255,0.05)'],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270,
+                        cutout: '75%',
+                        borderRadius: 20
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { bottom: 10 }
+                    },
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } }
                 }
             });
         }
