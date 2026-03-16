@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --primary: #22c55e;
+        --primary-hover: #16a34a;
+        --bg-color: #0f172a;
+        --panel-bg: rgba(30, 41, 59, 0.7);
+    }
+
+    body {
+        @apply bg-[#0f172a] text-slate-50 font-sans;
+        background-image: radial-gradient(circle at 15% 50%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+                          radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+    }
+}
+
+@layer components {
+    .glass-panel {
+        @apply bg-[#1e293b]/70 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+    }
+
+    .form-control {
+        @apply w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all;
+    }
+
+    .btn-primary {
+        @apply bg-primary hover:bg-primary-hover text-white py-3 px-6 rounded-xl font-bold transition-all shadow-lg hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    /* Scrollbar minimalista */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        @apply bg-transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        @apply bg-white/10 rounded-full hover:bg-white/20;
+    }
+}
+
+/* Modal Styles override if needed */
+.modal {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-300;
+}
+
+.modal-content {
+    @apply bg-slate-900 border border-white/10 rounded-2xl w-full max-w-lg p-6 shadow-2xl overflow-y-auto max-h-[90vh];
+}
+
+.modal-header {
+    @apply flex justify-between items-center mb-6 pb-4 border-b border-white/10;
+}
+
+.modal-header h2 {
+    @apply text-xl font-extrabold text-white;
+}
+
+.close {
+    @apply text-slate-400 hover:text-white cursor-pointer text-2xl transition-colors;
+}

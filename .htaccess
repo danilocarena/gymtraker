@@ -1,0 +1,25 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Base de la aplicación (cambiar si se sube a otra subcarpeta)
+    RewriteBase /
+
+    # Redirigir siempre a HTTPs (Opcional, descomentar si tienes SSL en tu Host futuro)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Quitar el .php de la barra de direcciones de forma silenciosa para que cargue el archivo
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^([^\.]+)$ $1.php [NC,L]
+
+    # Proteger archivos de configuración
+    <FilesMatch "^(gymtracker\.sql|\.htaccess|\.env|includes/db\.php)$">
+        Require all denied
+    </FilesMatch>
+
+</IfModule>
+
+# Deshabilitar listado de directorios
+Options -Indexes
